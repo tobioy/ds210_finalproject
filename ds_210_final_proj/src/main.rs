@@ -1,14 +1,13 @@
 use std::error::Error;
 use std::fs::File;
-use rand::prelude::SliceRandom;
-use rand::prelude::SliceRandom; 
-use std::io::{BufRead, BufWriter, Write}; 
-use std::io::{BufRead, BufReader};
 use std::time::Instant;
+use std::io::{BufRead, BufReader, Write};
+use std::collections::HashMap;
+use rand::prelude::SliceRandom;
 
 type CharacterGraph = petgraph::Graph<String, ()>;
 
-/// Converts a CSV file to a cleaned TXT file, removing duplicates.
+/// This converts the CSV file to a cleaned TXT file and also removes duplicates
 fn csv_to_txt(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
     let edges = read_csv(input_path)?;
     let cleaned_edges = remove_duplicates(&edges);
@@ -16,7 +15,7 @@ fn csv_to_txt(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-/// Reads a CSV file and creates a vector of edges.
+/// This reads the CSV then creates a vector of edges
 fn read_csv(input_path: &str) -> Result<Vec<(String, String)>, Box<dyn Error>> {
     let file = File::open(input_path)?;
     let reader = BufReader::new(file);
@@ -28,16 +27,16 @@ fn read_csv(input_path: &str) -> Result<Vec<(String, String)>, Box<dyn Error>> {
         let nodes: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
 
         if nodes.len() >= 2 {
-            let name = nodes[0].to_owned();
-            let alias = nodes.get(1).map_or("", |&s| s).to_owned();
-            edges.push((name, alias));
+            let name1 = nodes[0].to_owned();
+            let name2 = nodes.get(1).map_or("", |&s| s).to_owned();
+            edges.push((name1, name2));
         }
     }
 
     Ok(edges)
 }
 
-/// Removes duplicate edges from a vector.
+/// Removes duplicate edges from a vector
 fn remove_duplicates(edges: &[(String, String)]) -> Vec<(String, String)> {
     let mut unique_edges = HashMap::new();
 
@@ -48,7 +47,7 @@ fn remove_duplicates(edges: &[(String, String)]) -> Vec<(String, String)> {
     unique_edges.keys().cloned().collect()
 }
 
-/// Writes a vector of edges to a TXT file.
+/// Uses data retried from CSV to create TXT file - writes edges to vector
 fn write_txt(output_path: &str, edges: &[(String, String)]) -> Result<(), Box<dyn Error>> {
     let file = File::create(output_path)?;
     let mut writer = std::io::BufWriter::new(file);
@@ -60,7 +59,7 @@ fn write_txt(output_path: &str, edges: &[(String, String)]) -> Result<(), Box<dy
     Ok(())
 }
 
-/// Loads character relationships from a text file into a graph.
+/// Reads character relationship from TXT and laods it into a graph
 fn load_data(file_path: &str) -> Result<CharacterGraph, Box<dyn Error>> {
     let file = File::open(file_path)?;
     let reader = BufReader::new(file);
@@ -88,17 +87,19 @@ fn load_data(file_path: &str) -> Result<CharacterGraph, Box<dyn Error>> {
     Ok(graph)
 }
 
-/// Randomly selects a sample of items from a slice.
-fn random_sample<'a, T>(items: &'a [T], sample_size: usize) -> Vec<&'a T> {
+/// randomly selects a character
+fn random_sample<'a, T: Clone>(items: &'a [T], sample_size: usize) -> Vec<T> {
     let mut rng = rand::thread_rng();
     items.choose_multiple(&mut rng, sample_size).cloned().collect()
 }
 
-/// Finds the degrees of separation (shortest paths) from a start character to all other characters.
-fn degrees_of_separation_to_all(graph: &CharacterGraph, start: &str) -> Result<HashMap<String, usize>, Box<dyn Error>> {
+// calculates degrees of seperation from randomly chosen character to all 
+fn six_degrees_to_all(graph: &CharacterGraph, start: &str) -> Result<HashMap<String, usize>, Box<dyn Error>> {
     let node_map: HashMap<&str, _> = graph
         .node_indices()
-        .map(|idx| (graph.node_weight(idx).unwrap().as_str(), idx))
+        .map(|idx| graph.node_weight(idx).unwrap())
+        .map(|s| s.as_str()) 
+        .zip(graph.node_indices()) 
         .collect();
 
     let start_node = *node_map.get(start).ok_or("Start character not found")?;
@@ -125,19 +126,17 @@ fn degrees_of_separation_to_all(graph: &CharacterGraph, start: &str) -> Result<H
     Ok(distances)
 }
 
+
 fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "hp_character_network.csv";
     let output_path = "hp_character_network.txt";
 
-    // Convert CSV to cleaned TXT file
     csv_to_txt(input_path, output_path)?;
-    println!("CSV to TXT conversion successful!");
+    println!("CSV to TXT successful!");
 
-    // Load data from TXT file into graph
     let graph = load_data(output_path)?;
-    println!("Graph loaded successfully!");
+    println!("Graph successfull!");
 
-    // Randomly select a sample of characters
     let sample_size = 5;
     let node_indices: Vec<_> = graph.node_indices().collect();
     let random_characters = random_sample(&node_indices, sample_size)
@@ -145,13 +144,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .map(|idx| graph.node_weight(idx).unwrap())
         .collect::<Vec<_>>();
 
-    // Choose a random start character from the sample
     let start_character = random_characters.choose(&mut rand::thread_rng()).unwrap();
     println!("Randomly selected start character: {}", start_character);
 
-    // Find degrees of separation to all other characters from the start character
     let start_time = Instant::now();
-    let distances = degrees_of_separation_to_all(&graph, start_character)?;
+    let distances = six_degrees_to_all(&graph, start_character)?;
     let elapsed_time = start_time.elapsed().as_micros();
 
     // Output distances
