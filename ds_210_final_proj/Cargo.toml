@@ -10,3 +10,6 @@ rand = "0.8"
 petgraph = "0.5" 
 csv = "1.1" 
 
+[[test]]
+name = "my_test_suite"
+path = "tests.rs"
