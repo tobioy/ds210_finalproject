@@ -37,7 +37,7 @@ fn read_csv(input_path: &str) -> Result<Vec<(String, String)>, Box<dyn Error>> {
     Ok(edges)
 }
 
-/// Removes duplicate edges from a vector
+/// Removes duplicate edges from a vector (duplicate characters)
 fn remove_duplicates(edges: &[(String, String)]) -> Vec<(String, String)> {
     let mut unique_edges = HashMap::new();
 
@@ -73,7 +73,7 @@ fn load_data(file_path: &str) -> Result<CharacterGraph, Box<dyn Error>> {
         let characters: Vec<&str> = line.split(',').map(|s| s.trim()).collect();
 
         if characters.len() < 2 {
-            continue; // Skip invalid lines
+            continue; // skips lines w less than 2 characters
         }
 
         let source = characters[0].to_owned();
@@ -113,10 +113,9 @@ fn six_degrees_to_all(graph: &CharacterGraph, start: &str) -> Result<HashMap<Str
     while let Some((current_node, current_distance)) = queue.pop_front() {
         let current_character = graph.node_weight(current_node).unwrap().clone();
 
-        // Record the shortest distance to current_character
+        // shortest distance to current_character
         distances.insert(current_character, current_distance);
 
-        // Explore neighbors
         for neighbor in graph.neighbors(current_node) {
             if !visited.contains_key(&neighbor) {
                 queue.push_back((neighbor, current_distance + 1));
@@ -152,7 +151,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let distances = six_degrees_to_all(&graph, start_character)?;
     let elapsed_time = start_time.elapsed().as_micros();
 
-    // Output distances
     println!("Degrees of separation from '{}':", start_character);
     for (character, distance) in &distances {
         println!("{}: {} degrees", character, distance);
