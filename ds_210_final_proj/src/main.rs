@@ -1,13 +1,14 @@
+use std::time::Instant;
 use std::error::Error;
 use std::fs::File;
-use std::time::Instant;
 use std::io::{BufRead, BufReader, Write};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use rand::prelude::SliceRandom;
+use petgraph::graph::{DiGraph, NodeIndex};
 
-type CharacterGraph = petgraph::Graph<String, ()>;
+type CharacterGraph = DiGraph<String, ()>;
 
-/// This converts the CSV file to a cleaned TXT file and also removes duplicates
+/// This converts the CSV file to a cleaned TXT file and removes duplicates
 fn csv_to_txt(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>> {
     let edges = read_csv(input_path)?;
     let cleaned_edges = remove_duplicates(&edges);
@@ -15,7 +16,7 @@ fn csv_to_txt(input_path: &str, output_path: &str) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-/// This reads the CSV then creates a vector of edges
+/// Reads the CSV file and creates a vector of edges
 fn read_csv(input_path: &str) -> Result<Vec<(String, String)>, Box<dyn Error>> {
     let file = File::open(input_path)?;
     let reader = BufReader::new(file);
@@ -47,7 +48,7 @@ fn remove_duplicates(edges: &[(String, String)]) -> Vec<(String, String)> {
     unique_edges.keys().cloned().collect()
 }
 
-/// Uses data retried from CSV to create TXT file - writes edges to vector
+/// Writes a vector of edges to a TXT file
 fn write_txt(output_path: &str, edges: &[(String, String)]) -> Result<(), Box<dyn Error>> {
     let file = File::create(output_path)?;
     let mut writer = std::io::BufWriter::new(file);
@@ -59,13 +60,13 @@ fn write_txt(output_path: &str, edges: &[(String, String)]) -> Result<(), Box<dy
     Ok(())
 }
 
-/// Reads character relationship from TXT and laods it into a graph
+/// Reads character relationships from TXT and loads them into a graph
 fn load_data(file_path: &str) -> Result<CharacterGraph, Box<dyn Error>> {
     let file = File::open(file_path)?;
     let reader = BufReader::new(file);
     let mut graph = CharacterGraph::new();
 
-    let mut node_map: HashMap<String, _> = HashMap::new();
+    let mut node_map: HashMap<String, NodeIndex> = HashMap::new();
 
     for line in reader.lines() {
         let line = line?;
@@ -87,45 +88,45 @@ fn load_data(file_path: &str) -> Result<CharacterGraph, Box<dyn Error>> {
     Ok(graph)
 }
 
-/// randomly selects a character
+/// Randomly selects a sample of characters
 fn random_sample<'a, T: Clone>(items: &'a [T], sample_size: usize) -> Vec<T> {
     let mut rng = rand::thread_rng();
     items.choose_multiple(&mut rng, sample_size).cloned().collect()
 }
 
-// calculates degrees of seperation from randomly chosen character to all 
+/// Calculates degrees of separation from a randomly chosen character to all others using BFS
 fn six_degrees_to_all(graph: &CharacterGraph, start: &str) -> Result<HashMap<String, usize>, Box<dyn Error>> {
-    let node_map: HashMap<&str, _> = graph
+    let node_map: HashMap<&str, NodeIndex> = graph
         .node_indices()
-        .map(|idx| graph.node_weight(idx).unwrap())
-        .map(|s| s.as_str()) 
-        .zip(graph.node_indices()) 
+        .map(|idx| (graph.node_weight(idx).unwrap().as_str(), idx))
         .collect();
 
     let start_node = *node_map.get(start).ok_or("Start character not found")?;
 
     let mut distances: HashMap<String, usize> = HashMap::new();
+    let mut queue = VecDeque::new();
+    let mut visited = HashMap::new();
 
-    for node in graph.node_indices() {
-        if node != start_node {
-            let target_character = graph.node_weight(node).unwrap().clone();
-            let result = petgraph::algo::astar(
-                &graph,
-                start_node,
-                |finish| finish == node,
-                |_| 1,
-                |_| 0,
-            );
+    queue.push_back((start_node, 0));
+    visited.insert(start_node, true);
 
-            if let Some((distance, _)) = result {
-                distances.insert(target_character, distance);
+    while let Some((current_node, current_distance)) = queue.pop_front() {
+        let current_character = graph.node_weight(current_node).unwrap().clone();
+
+        // Record the shortest distance to current_character
+        distances.insert(current_character, current_distance);
+
+        // Explore neighbors
+        for neighbor in graph.neighbors(current_node) {
+            if !visited.contains_key(&neighbor) {
+                queue.push_back((neighbor, current_distance + 1));
+                visited.insert(neighbor, true);
             }
         }
     }
 
     Ok(distances)
 }
-
 
 fn main() -> Result<(), Box<dyn Error>> {
     let input_path = "hp_character_network.csv";
@@ -135,7 +136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("CSV to TXT successful!");
 
     let graph = load_data(output_path)?;
-    println!("Graph successfull!");
+    println!("Graph loaded successfully!");
 
     let sample_size = 5;
     let node_indices: Vec<_> = graph.node_indices().collect();
