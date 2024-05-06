@@ -11,16 +11,16 @@ mod tests {
 
     #[test]
     fn test_read_csv() {
-        // Prepare a CSV string
+        // Prepare a CSV string (makes it easier for testing)
         let csv_data = "Harry Potter,Ron Weasley\nHermione Granger,Harry Potter";
         let temp_file = NamedTempFile::new().unwrap();
         let path = temp_file.path().to_str().unwrap();
 
-        // Write CSV data to the temporary file
+        // Write CSV data to temporary file
         let mut file = File::create(path).unwrap();
         file.write_all(csv_data.as_bytes()).unwrap();
 
-        // Read CSV and check results
+        // Reads csv and check results
         let result = read_csv(path).unwrap();
         assert_eq!(result.len(), 2);
         assert_eq!(result[0], ("Harry Potter".to_owned(), "Ron Weasley".to_owned()));
@@ -29,14 +29,14 @@ mod tests {
 
     #[test]
     fn test_remove_duplicates() {
-        // Prepare input with duplicates
+        // Makes input w duplicates
         let edges = vec![
             ("Harry Potter".to_owned(), "Ron Weasley".to_owned()),
             ("Hermione Granger".to_owned(), "Harry Potter".to_owned()),
             ("Harry Potter".to_owned(), "Ron Weasley".to_owned()), // Duplicate
         ];
 
-        // Remove duplicates
+        // Remove sduplicates
         let result = remove_duplicates(&edges);
 
         // Verify result
@@ -47,7 +47,7 @@ mod tests {
 
     #[test]
     fn test_write_txt() {
-        // Prepare data to write
+        // Prepares data to write
         let edges = vec![
             ("Harry Potter".to_owned(), "Ron Weasley".to_owned()),
             ("Hermione Granger".to_owned(), "Harry Potter".to_owned()),
@@ -58,14 +58,14 @@ mod tests {
         let path = temp_file.path().to_str().unwrap();
         write_txt(path, &edges).unwrap();
 
-        // Read back and verify content
+        // reads back verifies content
         let file_content = fs::read_to_string(path).unwrap();
         assert_eq!(file_content, "Harry Potter,Ron Weasley\nHermione Granger,Harry Potter\n");
     }
 
     #[test]
     fn test_load_data() {
-        // Prepare data for a temporary TXT file
+        // Prepares data for temporary txt
         let txt_data = "Harry Potter,Ron Weasley\nHermione Granger,Harry Potter";
         let temp_file = NamedTempFile::new().unwrap();
         let path = temp_file.path().to_str().unwrap();
@@ -74,7 +74,7 @@ mod tests {
         let mut file = File::create(path).unwrap();
         file.write_all(txt_data.as_bytes()).unwrap();
 
-        // Load data into a graph and verify
+        // Loads data into a graph and verifies
         let result = load_data(path).unwrap();
         assert_eq!(result.node_count(), 3); // 3 nodes: Harry Potter, Ron Weasley, Hermione Granger
         assert_eq!(result.edge_count(), 2); // 2 edges
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_six_degrees_to_all() {
-        // Prepare a sample graph
+        // Prepares sample graph
         let mut graph = CharacterGraph::new();
         let node1 = graph.add_node("Harry Potter".to_owned());
         let node2 = graph.add_node("Ron Weasley".to_owned());
@@ -102,7 +102,7 @@ mod tests {
         .cloned()
         .collect();
 
-        assert_eq!(result.len(), 2); // Expect distances for 2 characters
+        assert_eq!(result.len(), 2); // Expected: distances for 2 characters
         assert_eq!(result, expected_distances);
     }
 }
